@@ -1,0 +1,105 @@
+// Schema Prisma de referência para o sistema de gestão imobiliária
+// Este arquivo serve como documentação do modelo de dados.
+// Para usar com PostgreSQL real, execute: npx prisma migrate dev
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TipoImovel {
+  casa
+  apartamento
+  terreno
+  comercial
+}
+
+enum FinalidadeImovel {
+  venda
+  aluguel
+}
+
+enum StatusImovel {
+  disponivel
+  reservado
+  vendido
+  alugado
+}
+
+enum OrigemLead {
+  site
+  indicacao
+  portal
+}
+
+enum StatusLead {
+  novo
+  qualificando
+  atendido
+  perdido
+}
+
+enum PapelUsuario {
+  admin
+  corretor
+}
+
+model Imovel {
+  id          String         @id @default(uuid())
+  titulo      String
+  descricao   String
+  tipo        TipoImovel
+  finalidade  FinalidadeImovel
+  preco       Float
+  area        Float
+  quartos     Int            @default(0)
+  banheiros   Int            @default(0)
+  vagas       Int            @default(0)
+  endereco    String
+  bairro      String
+  cidade      String
+  estado      String
+  cep         String
+  latitude    Float?
+  longitude   Float?
+  status      StatusImovel   @default(disponivel)
+  fotos       String[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  leads       Lead[]
+
+  @@index([bairro])
+  @@index([tipo])
+  @@index([finalidade])
+  @@index([status])
+}
+
+model Lead {
+  id        String      @id @default(uuid())
+  nome      String
+  email     String
+  telefone  String
+  mensagem  String?
+  imovelId  String?
+  imovel    Imovel?     @relation(fields: [imovelId], references: [id])
+  origem    OrigemLead  @default(site)
+  status    StatusLead  @default(novo)
+  createdAt DateTime    @default(now())
+
+  @@index([status])
+  @@index([imovelId])
+}
+
+model Usuario {
+  id        String       @id @default(uuid())
+  nome      String
+  email     String       @unique
+  senha     String
+  papel     PapelUsuario @default(corretor)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
