@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Filter } from 'lucide-react';
 import { getImoveis, getBairros } from '../lib/storage';
-import { ImovelCard } from '../components/ImovelCard';
-import { Input, Select, Button } from '../components/ui';
+import { ImovelCard, ImovelCardSkeleton } from '../components/ImovelCard';
+import { Input, Select, Button, EmptyState } from '../components/ui';
 import { FiltrosImovel, TipoImovel, FinalidadeImovel } from '../types';
 
 export function ImoveisPage() {
@@ -11,6 +11,7 @@ export function ImoveisPage() {
   const [filtros, setFiltros] = useState<FiltrosImovel>({});
   const [pagina, setPagina] = useState(1);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const f: FiltrosImovel = {};
@@ -22,6 +23,9 @@ export function ImoveisPage() {
     if (searchParams.get('preco_min')) f.preco_min = parseFloat(searchParams.get('preco_min')!);
     if (searchParams.get('preco_max')) f.preco_max = parseFloat(searchParams.get('preco_max')!);
     setFiltros(f);
+    // Simula loading
+    const t = setTimeout(() => setLoading(false), 600);
+    return () => clearTimeout(t);
   }, []);
 
   const { dados: imoveis, paginacao } = getImoveis(filtros, pagina, 9);
@@ -47,19 +51,28 @@ export function ImoveisPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center justify-between mb-6">
+      {/* Header */}
+      <div className="flex items-end justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Imóveis Disponíveis</h1>
-          <p className="text-gray-600 text-sm mt-1">
-            {paginacao.total} imóvel(is) encontrado(s)
+          <p className="text-xs font-semibold text-brand-600 uppercase tracking-wider mb-2">Catálogo</p>
+          <h1 className="text-3xl md:text-4xl font-bold text-neutral-900 font-display">
+            Imóveis Disponíveis
+          </h1>
+          <p className="text-neutral-500 text-sm mt-2">
+            {loading ? 'Carregando...' : `${paginacao.total} imóvel(is) encontrado(s)`}
           </p>
         </div>
         <button
-          className="md:hidden flex items-center gap-2 px-4 py-2 border rounded-lg text-sm"
+          className="md:hidden flex items-center gap-2 px-4 py-2 border border-neutral-200 rounded-lg text-sm font-medium bg-white hover:bg-neutral-50 transition-colors"
           onClick={() => setSidebarOpen(true)}
         >
           <SlidersHorizontal size={16} />
           Filtros
+          {filtrosAtivos && (
+            <span className="w-5 h-5 bg-brand-600 text-white text-xs rounded-full flex items-center justify-center">
+              {Object.keys(filtros).length}
+            </span>
+          )}
         </button>
       </div>
 
@@ -78,36 +91,52 @@ export function ImoveisPage() {
         {/* Sidebar mobile (overlay) */}
         {sidebarOpen && (
           <div className="fixed inset-0 z-50 md:hidden">
-            <div className="fixed inset-0 bg-black/50" onClick={() => setSidebarOpen(false)} />
-            <div className="fixed inset-y-0 left-0 w-80 bg-white overflow-y-auto p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-semibold text-lg">Filtros</h2>
-                <button onClick={() => setSidebarOpen(false)}>
-                  <X size={20} />
+            <div
+              className="fixed inset-0 bg-neutral-950/50 backdrop-blur-sm animate-fade-in"
+              onClick={() => setSidebarOpen(false)}
+            />
+            <div className="fixed inset-y-0 left-0 w-80 bg-white overflow-y-auto shadow-2xl animate-slide-in-right" style={{ animation: 'slideInRight 0.3s var(--ease-out)' }}>
+              <div className="sticky top-0 bg-white border-b border-neutral-100 px-5 py-4 flex items-center justify-between">
+                <h2 className="font-bold text-neutral-900 font-display">Filtros</h2>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="p-1.5 rounded-lg hover:bg-neutral-100"
+                >
+                  <X size={18} />
                 </button>
               </div>
-              <FiltrosSidebar
-                filtros={filtros}
-                bairros={bairros}
-                onChange={atualizarFiltro}
-                onLimpar={limparFiltros}
-                filtrosAtivos={filtrosAtivos}
-              />
+              <div className="p-5">
+                <FiltrosSidebar
+                  filtros={filtros}
+                  bairros={bairros}
+                  onChange={atualizarFiltro}
+                  onLimpar={limparFiltros}
+                  filtrosAtivos={filtrosAtivos}
+                />
+              </div>
             </div>
           </div>
         )}
 
         {/* Lista de imóveis */}
-        <div className="flex-1">
-          {imoveis.length === 0 ? (
-            <div className="text-center py-16">
-              <Search size={48} className="mx-auto text-gray-300 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum imóvel encontrado</h3>
-              <p className="text-gray-600 mb-4">Tente ajustar os filtros de busca</p>
-              <Button variant="secondary" onClick={limparFiltros}>
-                Limpar filtros
-              </Button>
+        <div className="flex-1 min-w-0">
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <ImovelCardSkeleton key={i} />
+              ))}
             </div>
+          ) : imoveis.length === 0 ? (
+            <EmptyState
+              illustration="search"
+              title="Nenhum imóvel encontrado"
+              description="Tente ajustar os filtros de busca ou explore outras categorias."
+              action={
+                <Button variant="outline" onClick={limparFiltros}>
+                  Limpar filtros
+                </Button>
+              }
+            />
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -115,16 +144,16 @@ export function ImoveisPage() {
                   <ImovelCard
                     key={imovel.id}
                     imovel={imovel}
-                    onClick={() => window.location.href = `/imoveis/${imovel.id}`}
+                    onClick={() => window.location.href = `#/imoveis/${imovel.id}`}
                   />
                 ))}
               </div>
 
               {/* Paginação */}
               {paginacao.totalPaginas > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-8">
+                <div className="flex items-center justify-center gap-1 mt-10">
                   <Button
-                    variant="secondary"
+                    variant="outline"
                     size="sm"
                     disabled={pagina === 1}
                     onClick={() => setPagina(pagina - 1)}
@@ -135,15 +164,17 @@ export function ImoveisPage() {
                     <button
                       key={p}
                       onClick={() => setPagina(p)}
-                      className={`w-8 h-8 rounded-lg text-sm font-medium ${
-                        p === pagina ? 'bg-blue-600 text-white' : 'hover:bg-gray-100 text-gray-700'
+                      className={`w-9 h-9 rounded-lg text-sm font-medium transition-all ${
+                        p === pagina
+                          ? 'bg-neutral-900 text-white shadow-sm'
+                          : 'text-neutral-700 hover:bg-neutral-100'
                       }`}
                     >
                       {p}
                     </button>
                   ))}
                   <Button
-                    variant="secondary"
+                    variant="outline"
                     size="sm"
                     disabled={pagina === paginacao.totalPaginas}
                     onClick={() => setPagina(pagina + 1)}
@@ -170,11 +201,17 @@ interface FiltrosSidebarProps {
 
 function FiltrosSidebar({ filtros, bairros, onChange, onLimpar, filtrosAtivos }: FiltrosSidebarProps) {
   return (
-    <div className="bg-white rounded-xl border p-5 space-y-5">
+    <div className="bg-white rounded-xl border border-neutral-200 p-5 space-y-5 sticky top-24">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-gray-900">Filtros</h3>
+        <div className="flex items-center gap-2">
+          <Filter size={16} className="text-neutral-500" />
+          <h3 className="font-semibold text-neutral-900 text-sm">Filtros</h3>
+        </div>
         {filtrosAtivos && (
-          <button onClick={onLimpar} className="text-xs text-blue-600 hover:text-blue-800">
+          <button
+            onClick={onLimpar}
+            className="text-xs font-medium text-brand-600 hover:text-brand-700"
+          >
             Limpar tudo
           </button>
         )}
